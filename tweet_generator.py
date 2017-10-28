@@ -5,6 +5,8 @@ import tweepy
 import csv
 import unicodedata
 import re
+import os.path
+import markovify
 
 # Twitter API credentials
 consumer_key = 'TelkaEC2GUWR0IJogWxkrpZKy'
@@ -25,6 +27,7 @@ def get_all_tweets(screen_name):
     alltweets = []
 
     # make initial request for most recent tweets (200 is the maximum allowed count)
+    #new_tweets = api.user_timeline(screen_name=screen_name, count=200, q='-filter:links')
     new_tweets = api.user_timeline(screen_name=screen_name, count=200)
 
     # save most recent tweets
@@ -52,7 +55,15 @@ def get_all_tweets(screen_name):
 
     # transform the tweepy tweets into a 2D array that will populate the csv
     pattern = re.compile('http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+')
-    outtweets = [[pattern.sub('', unicodedata.normalize('NFKD', tweet.text).encode('ascii', 'ignore').decode('utf-8').replace("\n"," "))] for tweet in alltweets]
+
+    outtweets = []
+    for tweet in alltweets:
+        if "RT" not in tweet.text:
+            t = unicodedata.normalize('NFKD', tweet.text).encode('ascii', 'ignore')
+            t = t.decode('utf-8')
+            t = t.replace("\n"," ")
+            pattern.sub('',t)
+            outtweets.append([t])
 
     # write the csv
     with open("%s_tweets.csv" % screen_name, "wt") as f:
@@ -62,5 +73,18 @@ def get_all_tweets(screen_name):
 
 if __name__ == '__main__':
     # pass in the username of the account you want to download
-    #get_all_tweets("Beyonce")
-    get_all_tweets("realDonaldTrump")
+    user = "realDonaldTrump"
+
+    if not os.path.isfile("%s_tweets.csv" % user):
+        get_all_tweets(user)
+
+    # Get raw text as string.
+    with open("%s_tweets.csv" % user) as f:
+        text = f.read()
+
+    # Build the model.
+    text_model = markovify.Text(text)
+
+    # Print three randomly-generated sentences of no more than 140 characters
+    for i in range(20):
+        print(text_model.make_short_sentence(140))
